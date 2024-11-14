@@ -3,13 +3,15 @@ import { useState, useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
+
 const ProjectExperience = () => {
-  const [matcapTexture] = useMatcapTexture('7B5254_E9DCC7_B19986_C8AC91', 256);
+  
   const textRef = useRef();
   const particlesRef = useRef();
   const particleCount = 5000;
   const randomStartPositions = useRef(new Float32Array(particleCount * 3));
   const targetPositions = useRef(new Float32Array(particleCount * 3));
+
 
   useEffect(() => {
     if (textRef.current) {
@@ -88,7 +90,7 @@ const ProjectExperience = () => {
   useFrame((state, delta) => {
     const positions = particlesRef.current.geometry.attributes.position.array;
     for (let i = 0; i < particleCount * 3; i++) {
-      positions[i] += (targetPositions.current[i] - positions[i]) * 0.01; // adjust 0.05 to control animation speed
+      positions[i] += (targetPositions.current[i] - positions[i]) * 0.09; // adjust 0.05 to control animation speed
     }
     particlesRef.current.geometry.attributes.position.needsUpdate = true;
   });
@@ -110,7 +112,6 @@ const ProjectExperience = () => {
           visible={false}
         >
           Projects
-          <meshMatcapMaterial matcap={matcapTexture} />
         </Text3D>
 
         <points ref={particlesRef}>

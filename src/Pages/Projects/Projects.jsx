@@ -1,11 +1,34 @@
+
 import { Canvas } from '@react-three/fiber';
 import ProjectExperience from './ProjectExperience';
 import ExampleExperience from './ExampleExperience';
 import ExampleSliders from './ExampleSliders';
-import React, { useRef } from 'react';
+import React, { useRef, useState,useEffect } from 'react';
+import { Html } from '@react-three/drei';
+
+// const TRANSITION_INTERVAL=10000
 
 export default function Projects() {
     const wrapperRef = useRef();
+    const [currentIndex, setCurrentIndex] = useState(0);
+
+    const nextSlide = () => {
+        setCurrentIndex((prevIndex) => (prevIndex + 1) % 7); // Loop through slides
+    };
+
+    const prevSlide = () => {
+        setCurrentIndex((prevIndex) => (prevIndex - 1 + 7) % 7); // Allow backwards looping
+    };
+
+
+    // ANIMATION LOOP
+    
+    // useEffect(() => {
+    //     const interval = setInterval(nextSlide, TRANSITION_INTERVAL);
+    //     return () => clearInterval(interval);
+    // }, []); 
+
+    
 
     return (
         <div className="h-screen w-full grid grid-cols-2 gap-4 p-8">
@@ -22,8 +45,12 @@ export default function Projects() {
                 >
                     <group>
                         <ProjectExperience wrapperRef={wrapperRef} />
-                        <ExampleExperience />
+                        <ExampleExperience currentIndex={currentIndex} />
                     </group>
+                    <Html position={[0,-4.4,0]}>
+                        <button onClick={nextSlide}><img src='./next.png'/></button>
+                        <button onClick={prevSlide}>Back</button>
+                    </Html>
                 </Canvas>
             </div>
 
@@ -39,7 +66,7 @@ export default function Projects() {
                     }}
                 >
                     <group>
-                        <ExampleSliders />
+                        <ExampleSliders currentSlideIndex={currentIndex} />
                     </group>
                 </Canvas>
             </div>

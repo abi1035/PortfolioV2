@@ -1,172 +1,74 @@
-import { useMatcapTexture, Center, Text3D, OrbitControls, Float } from '@react-three/drei';
-import { useState, useRef, useEffect } from 'react';
-import { useFrame } from '@react-three/fiber';
-import * as THREE from 'three';
+import { useMatcapTexture, Text3D, Html, OrbitControls } from '@react-three/drei';
+import { useRef,Suspense } from 'react';
+import { ParticleSystem } from './ParticleSystem';
+import './projectStyles.css'
 
-const ExampleExperience = () => {
-  const [matcapTexture] = useMatcapTexture('7B5254_E9DCC7_B19986_C8AC91', 256);
-  const textRef = useRef();
-  const particlesRef = useRef();
-  const particleCount = 5000;
-  const randomStartPositions = useRef(new Float32Array(particleCount * 3));
-  const targetPositions = useRef(new Float32Array(particleCount * 3));
-  const [textArrayIndex, setTextArrayIndex] = useState(0);
-  const textArray = ['Terrain Maps', 'Custom Webpages','Custom APIs', 'Animation', 'Custom Shaders'];
-  const textExplanation=['Terrain Maps Lorem', 'Custom Webpages Ipsum', 'Animation Lorem', 'Custom Shaders Ipsum']
+const ExampleExperience = ({ currentIndex }) => {
+    const textArray = ['3D Websites', 'Frontend','Fullstack', 'Custom Shaders', 'Terrain Generation','Physics-renders','Games'];
+    const textExplanation = [
+      'I can build engaging 3D websites and application with WebGL and Three.js, with realistic environments and models and make it interactive. I also optimize scenes for smooth performance across devices and platforms, ensuring responsive and a high-quality rendering.',
+      'I build visually appealing UI and web applications, creating seamless user experiences and fun animations, with a focus on responsive design and optimal performance on all devices.',
+      'I can develop full-stack applications with a responsive, user-friendly frontend and a robust backend that seamlessly integrates with a fully connected database. My work ensures smooth communication between all components, delivering an efficient and cohesive user experience across devices.',
+      "I can also develop custom shaders using GLSL to make mesmirising geometries like a Raging sea or other custom geometries, to suit the client's need",
+      'I can develop procedurally generated terrains for immersive world-building, leveraging GLSL to create dynamic, realistic landscapes. Write algorithms for terrain variation, texturing, and optimizing real-time rendering, providing detailed, scalable environments suitable for games, simulations, and interactive 3D applications.',
+      'I can render complex geometries with integrated physics, making it fluid and realistic that respond dynamically to user interactions and environmental factors.',
+      'I create interactive 3D games that run smoothly in the browser using React Three Fiber. My focus is on building engaging, responsive gameplay with optimized performance, making the most of WebGL and R3F to deliver immersive experiences that feel fluid and responsive across different devices.'
+    ];
 
-  // Function to update particle target positions to form the current text
-  const updateTargetPositions = () => {
-    if (textRef.current) {
-      // Dispose of the previous geometry to prevent memory leaks
-      if (textRef.current.geometry) {
-        textRef.current.geometry.dispose();
-      }
+    const techStack=[
+      ['WebGL','Three.js','R3F','GLSL','Drei'],
+      ['HTML','CSS','Javascript','React','Next.js'],
+      ['Node.js','Express','API','Jest','GraphQL','OAuth'],
+      ['WebGL','Three.js','R3F','GLSL','Drei'],
+      ['WebGL','Three.js','R3F','GLSL','Drei','Rapier'],
+      ['WebGL','Three.js','R3F','GLSL','Drei','Rapier'],
+      ['WebGL','Three.js','R3F','GLSL','Drei','Rapier'],
+    ]
 
-      // Generate new geometry based on the current text
-      const geometry = textRef.current.geometry;
-      const positions = geometry.attributes.position.array;
-
-      // Fill targetPositions with points on the text shape using weighted sampling
-      const segments = [];
-      for (let i = 0; i < positions.length; i += 9) {
-        const triangle = {
-          vertices: [
-            new THREE.Vector3(positions[i], positions[i + 1], positions[i + 2]),
-            new THREE.Vector3(positions[i + 3], positions[i + 4], positions[i + 5]),
-            new THREE.Vector3(positions[i + 6], positions[i + 7], positions[i + 8]),
-          ],
-          area: 0,
-        };
-
-        const a = triangle.vertices[0].distanceTo(triangle.vertices[1]);
-        const b = triangle.vertices[1].distanceTo(triangle.vertices[2]);
-        const c = triangle.vertices[2].distanceTo(triangle.vertices[0]);
-        const s = (a + b + c) / 2;
-        triangle.area = Math.sqrt(s * (s - a) * (s - b) * (s - c));
-
-        segments.push(triangle);
-      }
-
-      const totalArea = segments.reduce((sum, segment) => sum + segment.area, 0);
-
-      for (let i = 0; i < particleCount; i++) {
-        const i3 = i * 3;
-        let areaChoice = Math.random() * totalArea;
-        let chosenTriangle;
-
-        for (const triangle of segments) {
-          areaChoice -= triangle.area;
-          if (areaChoice <= 0) {
-            chosenTriangle = triangle;
-            break;
-          }
-        }
-
-        const r1 = Math.random();
-        const r2 = Math.random();
-        const sqrtR1 = Math.sqrt(r1);
-
-        const a = 1 - sqrtR1;
-        const b = sqrtR1 * (1 - r2);
-        const c = r2 * sqrtR1;
-
-        const point = new THREE.Vector3()
-          .addScaledVector(chosenTriangle.vertices[0], a)
-          .addScaledVector(chosenTriangle.vertices[1], b)
-          .addScaledVector(chosenTriangle.vertices[2], c);
-
-        targetPositions.current[i3] = point.x;
-        targetPositions.current[i3 + 1] = point.y;
-        targetPositions.current[i3 + 2] = point.z;
-
-        // Set random start positions
-        randomStartPositions.current[i3] = (Math.random() - 0.5) * 30;
-        randomStartPositions.current[i3 + 1] = (Math.random() - 0.5) * 30;
-        randomStartPositions.current[i3 + 2] = (Math.random() - 0.5) * 30;
-      }
-
-      if (particlesRef.current) {
-        particlesRef.current.geometry.setAttribute(
-          'position',
-          new THREE.BufferAttribute(randomStartPositions.current, 3)
-        );
-      }
-    }
-  };
-
-  useEffect(() => {
-    updateTargetPositions();
-
-    // Cleanup function to dispose of previous geometries
-    return () => {
-      if (textRef.current && textRef.current.geometry) {
-        textRef.current.geometry.dispose();
-      }
-    };
-  }, [textArrayIndex]);
-
-  // Animate particles from random positions to target positions
-  useFrame(() => {
-    const positions = particlesRef.current.geometry.attributes.position.array;
-    for (let i = 0; i < particleCount * 3; i++) {
-      positions[i] += (targetPositions.current[i] - positions[i]) * 0.01;
-    }
-    particlesRef.current.geometry.attributes.position.needsUpdate = true;
-  });
-
-  //--------------------- Handles next text automatically----------------------------------------
-  useEffect(() => {
     
-    const interval = setInterval(() => {
-      setTextArrayIndex((prevIndex) => (prevIndex + 1) % textArray.length);
-    }, 8000);
+   
 
-    // Cleanup function to clear the interval when component unmounts
-    return () => clearInterval(interval);
-  }, []); 
+    const LoadingText = () => (
+      <Text3D
+        font="./fonts/helvetiker_regular.typeface.json"
+        size={0.5}
+        position={[-2, 0, 0]}
+      >
+        Loading...
+        <meshNormalMaterial />
+      </Text3D>
+    );
 
-  return (
-    <>
-    
-      <group position={[-6.5,-3.5,0]}>
-        <Text3D
-          ref={textRef}
-          font="./fonts/helvetiker_regular.typeface.json"
-          size={1.1}
-          height={0.2}
-          curveSegments={12}
-          bevelEnabled
-          bevelThickness={0.02}
-          bevelSize={0.02}
-          bevelOffset={0}
-          bevelSegments={5}
-          visible={false} // Hide the actual text geometry
-        >
-          {textArray[textArrayIndex]} {/* Display the text based on the current index */}
-          <meshMatcapMaterial matcap={matcapTexture} />
-        </Text3D>
-
-        <points ref={particlesRef}>
-          <bufferGeometry />
-          <pointsMaterial
-            size={0.02}
-            sizeAttenuation={true}
-            color="white"
-            transparent={true}
-            opacity={0.8}
+    return (
+        <>
+            <group position={[-6.5, 2.5, 0]}>
+        <Suspense fallback={<LoadingText />}>
+          <ParticleSystem 
+            text={textArray[currentIndex]}
+            font="./fonts/helvetiker_regular.typeface.json"
           />
-        </points>
+        </Suspense>
       </group>
-      
-    
 
-      
-      
-      
+      <Html>
+        
+        <div key={currentIndex} className='textExplanationDiv tracking-in-expand'>
+          <h4 className="text-xl">{textExplanation[currentIndex]}</h4>          
+        </div>
+
+        <div className='techStackTextDiv'>
+        <h4 className='text-xl'>Tech Stack:</h4>
+        </div>
+        <div className="textExplanationDiv flex space-x-2 mt-4">
+            {techStack[currentIndex]?.map((button, subIndex)=>(
+              <span key={subIndex}><button className='techButton'>{button}</button></span>
+            ))}
+          </div>
+      </Html>
 
       <OrbitControls enableZoom={false} />
-    </>
-  );
+        </>
+    );
 };
 
 export default ExampleExperience;

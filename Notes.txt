@@ -14,6 +14,9 @@ Use a planeGeometry to display all the projects (skills?)
 
 Repeat for other pages and complete the site
 
+FUTURE REFERENCE
+Add next button on the prjects instead of making it auto scroll
+
 
   <Menu as="div" className="relative ml-3">
               <div>
@@ -29,3 +32,27 @@ Repeat for other pages and complete the site
               </div>
             </Menu>
           </div>
+
+      <div>
+      HTML
+    </div>
+    <div>
+      CSS
+    </div>
+    <div>
+      Javascript
+    </div>
+    <div>
+      React
+    </div>
+    <div>
+      WebGL
+    </div>
+    <div>
+      Three.js
+    </div>
+    <div>
+      R3F
+    </div>
+
+    https://colinmak.vercel.app/
