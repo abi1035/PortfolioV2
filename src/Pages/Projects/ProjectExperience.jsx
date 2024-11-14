@@ -1,24 +1,26 @@
-import { useMatcapTexture, Center, Text3D, OrbitControls } from '@react-three/drei';
-import { useState, useRef, useEffect } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useRef, useEffect } from 'react';
+import { extend, useFrame } from '@react-three/fiber';
+import { Text3D, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
-
+import {vertexShader} from './projectExperienceShaders/vertex.glsl';
+import {fragmentShader} from './projectExperienceShaders/fragment.glsl';
 
 const ProjectExperience = () => {
-  
   const textRef = useRef();
+  const shaderMaterialRef = useRef();
   const particlesRef = useRef();
   const particleCount = 5000;
-  const randomStartPositions = useRef(new Float32Array(particleCount * 3));
-  const targetPositions = useRef(new Float32Array(particleCount * 3));
-
 
   useEffect(() => {
     if (textRef.current) {
       const geometry = textRef.current.geometry;
       const positions = geometry.attributes.position.array;
-
-      // Fill targetPositions with points on the text shape using weighted sampling
+      
+      // Create arrays for start and target positions
+      const startPositions = new Float32Array(particleCount * 3);
+      const targetPositions = new Float32Array(particleCount * 3);
+      
+      // Calculate target positions (similar to your original code)
       const segments = [];
       for (let i = 0; i < positions.length; i += 9) {
         const triangle = {
@@ -41,8 +43,16 @@ const ProjectExperience = () => {
 
       const totalArea = segments.reduce((sum, segment) => sum + segment.area, 0);
 
+      // Fill start and target positions
       for (let i = 0; i < particleCount; i++) {
         const i3 = i * 3;
+        
+        // Random start positions
+        startPositions[i3] = (Math.random() - 0.5) * 30;
+        startPositions[i3 + 1] = (Math.random() - 0.5) * 30;
+        startPositions[i3 + 2] = (Math.random() - 0.5) * 30;
+
+        // Calculate target positions
         let areaChoice = Math.random() * totalArea;
         let chosenTriangle;
 
@@ -67,32 +77,40 @@ const ProjectExperience = () => {
           .addScaledVector(chosenTriangle.vertices[1], b)
           .addScaledVector(chosenTriangle.vertices[2], c);
 
-        targetPositions.current[i3] = point.x;
-        targetPositions.current[i3 + 1] = point.y;
-        targetPositions.current[i3 + 2] = point.z;
-
-        // Set random start positions
-        randomStartPositions.current[i3] = (Math.random() - 0.5) * 30;
-        randomStartPositions.current[i3 + 1] = (Math.random() - 0.5) * 30;
-        randomStartPositions.current[i3 + 2] = (Math.random() - 0.5) * 30;
+        targetPositions[i3] = point.x;
+        targetPositions[i3 + 1] = point.y;
+        targetPositions[i3 + 2] = point.z;
       }
 
-      if (particlesRef.current) {
-        particlesRef.current.geometry.setAttribute(
-          'position',
-          new THREE.BufferAttribute(randomStartPositions.current, 3)
-        );
-      }
+      // Create geometry and set attributes
+      const particleGeometry = new THREE.BufferGeometry();
+      particleGeometry.setAttribute('position', new THREE.BufferAttribute(startPositions, 3));
+      particleGeometry.setAttribute('aStartPosition', new THREE.BufferAttribute(startPositions, 3));
+      particleGeometry.setAttribute('aTargetPosition', new THREE.BufferAttribute(targetPositions, 3));
+
+      // Create shader material
+      const shaderMaterial = new THREE.ShaderMaterial({
+        vertexShader,
+        fragmentShader,
+        transparent: true,
+        uniforms: {
+          uTime: { value: 0 },
+          uTransitionSpeed: { value: 2.0 }
+        }
+      });
+
+      // Update refs
+      particlesRef.current.geometry = particleGeometry;
+      particlesRef.current.material = shaderMaterial;
+      shaderMaterialRef.current = shaderMaterial;
     }
   }, [textRef.current]);
 
-  // Animate particles from random positions to target positions
-  useFrame((state, delta) => {
-    const positions = particlesRef.current.geometry.attributes.position.array;
-    for (let i = 0; i < particleCount * 3; i++) {
-      positions[i] += (targetPositions.current[i] - positions[i]) * 0.09; // adjust 0.05 to control animation speed
+  // Update time uniform
+  useFrame((state) => {
+    if (shaderMaterialRef.current) {
+      shaderMaterialRef.current.uniforms.uTime.value = state.clock.getElapsedTime();
     }
-    particlesRef.current.geometry.attributes.position.needsUpdate = true;
   });
 
   return (
@@ -116,13 +134,6 @@ const ProjectExperience = () => {
 
         <points ref={particlesRef}>
           <bufferGeometry />
-          <pointsMaterial
-            size={0.02}
-            sizeAttenuation={true}
-            color="white"
-            transparent={true}
-            opacity={1.8}
-          />
         </points>
       </group>
       <OrbitControls enableZoom={false} />

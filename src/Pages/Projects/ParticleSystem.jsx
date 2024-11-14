@@ -1,29 +1,18 @@
-import { useMatcapTexture, Center, Text3D, OrbitControls, Float, Html } from '@react-three/drei';
-import { useState, useRef, useEffect, Suspense, useMemo, useCallback } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
+import { Text3D } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import {vertexShader} from './exampleExperienceShaders/vertex.glsl';
+import {fragmentShader} from './exampleExperienceShaders/fragment.glsl';
 
 export const ParticleSystem = ({ text, font }) => {
     const particlesRef = useRef();
     const textRef = useRef();
+    const shaderMaterialRef = useRef();
     const particleCount = 5000;
-    const [isInitialized, setIsInitialized] = useState(false);
 
-    // Memoize the Float32Arrays to prevent recreating them on every render
-    const randomStartPositions = useMemo(() => new Float32Array(particleCount * 3), [particleCount]);
-    const targetPositions = useMemo(() => new Float32Array(particleCount * 3), [particleCount]);
-
-    // Memoize the initial random positions
-    useMemo(() => {
-        for (let i = 0; i < particleCount * 3; i += 3) {
-            randomStartPositions[i] = (Math.random() - 0.5) * 30;
-            randomStartPositions[i + 1] = (Math.random() - 0.5) * 30;
-            randomStartPositions[i + 2] = (Math.random() - 0.5) * 30;
-        }
-    }, [randomStartPositions, particleCount]);
-
-    // Memoize triangle calculations
-    const calculateTriangles = useCallback((geometry) => {
+    // Calculate triangles and sample points for a given geometry
+    const calculateTextGeometry = (geometry) => {
         const positions = geometry.attributes.position.array;
         const segments = [];
 
@@ -45,90 +34,116 @@ export const ParticleSystem = ({ text, font }) => {
             segments.push(triangle);
         }
 
-        return {
-            segments,
-            totalArea: segments.reduce((sum, segment) => sum + segment.area, 0)
-        };
-    }, []);
+        const totalArea = segments.reduce((sum, segment) => sum + segment.area, 0);
+        const targetPositions = new Float32Array(particleCount * 3);
 
-    // Memoize point calculation
-    const calculatePoint = useCallback((chosenTriangle, r1, r2) => {
-        const sqrtR1 = Math.sqrt(r1);
-        const a = 1 - sqrtR1;
-        const b = sqrtR1 * (1 - r2);
-        const c = r2 * sqrtR1;
+        for (let i = 0; i < particleCount; i++) {
+            const i3 = i * 3;
+            let areaChoice = Math.random() * totalArea;
+            let chosenTriangle;
 
-        return new THREE.Vector3()
-            .addScaledVector(chosenTriangle.vertices[0], a)
-            .addScaledVector(chosenTriangle.vertices[1], b)
-            .addScaledVector(chosenTriangle.vertices[2], c);
-    }, []);
+            for (const triangle of segments) {
+                areaChoice -= triangle.area;
+                if (areaChoice <= 0) {
+                    chosenTriangle = triangle;
+                    break;
+                }
+            }
 
-    const updateTargetPositions = useCallback(() => {
+            const r1 = Math.random();
+            const r2 = Math.random();
+            const sqrtR1 = Math.sqrt(r1);
+
+            const a = 1 - sqrtR1;
+            const b = sqrtR1 * (1 - r2);
+            const c = r2 * sqrtR1;
+
+            const point = new THREE.Vector3()
+                .addScaledVector(chosenTriangle.vertices[0], a)
+                .addScaledVector(chosenTriangle.vertices[1], b)
+                .addScaledVector(chosenTriangle.vertices[2], c);
+
+            targetPositions[i3] = point.x;
+            targetPositions[i3 + 1] = point.y;
+            targetPositions[i3 + 2] = point.z;
+        }
+
+        return targetPositions;
+    };
+
+    // Initialize particle system
+    useEffect(() => {
         if (!textRef.current?.geometry) return;
 
-        const { segments, totalArea } = calculateTriangles(textRef.current.geometry);
+        // Generate random start positions
+        const startPositions = new Float32Array(particleCount * 3);
+        for (let i = 0; i < particleCount * 3; i += 3) {
+            startPositions[i] = (Math.random() - 0.5) * 30;
+            startPositions[i + 1] = (Math.random() - 0.5) * 30;
+            startPositions[i + 2] = (Math.random() - 0.5) * 30;
+        }
 
-        requestAnimationFrame(() => {
-            for (let i = 0; i < particleCount; i++) {
-                const i3 = i * 3;
-                let areaChoice = Math.random() * totalArea;
-                let chosenTriangle;
+        // Calculate target positions for current text
+        const targetPositions = calculateTextGeometry(textRef.current.geometry);
 
-                for (const triangle of segments) {
-                    areaChoice -= triangle.area;
-                    if (areaChoice <= 0) {
-                        chosenTriangle = triangle;
-                        break;
-                    }
-                }
+        // Create geometry and set attributes
+        const particleGeometry = new THREE.BufferGeometry();
+        particleGeometry.setAttribute('position', new THREE.BufferAttribute(startPositions.slice(), 3));
+        particleGeometry.setAttribute('aStartPosition', new THREE.BufferAttribute(startPositions, 3));
+        particleGeometry.setAttribute('aTargetPosition', new THREE.BufferAttribute(targetPositions, 3));
+        particleGeometry.setAttribute('aNextTargetPosition', new THREE.BufferAttribute(targetPositions, 3));
 
-                const point = calculatePoint(chosenTriangle, Math.random(), Math.random());
-                targetPositions[i3] = point.x;
-                targetPositions[i3 + 1] = point.y;
-                targetPositions[i3 + 2] = point.z;
-            }
-
-            if (particlesRef.current) {
-                particlesRef.current.geometry.setAttribute(
-                    'position',
-                    new THREE.BufferAttribute(randomStartPositions, 3)
-                );
-                setIsInitialized(true);
+        // Create shader material
+        const shaderMaterial = new THREE.ShaderMaterial({
+            vertexShader,
+            fragmentShader,
+            transparent: true,
+            uniforms: {
+                uTime: { value: 0 },
+                uTransitionProgress: { value: 0 },
+                uAnimationSpeed: { value: 2.0 }
             }
         });
-    }, [calculateTriangles, calculatePoint, particleCount, randomStartPositions, targetPositions]);
 
-    useEffect(() => {
-        updateTargetPositions();
+        // Update refs
+        particlesRef.current.geometry = particleGeometry;
+        particlesRef.current.material = shaderMaterial;
+        shaderMaterialRef.current = shaderMaterial;
+
         return () => {
-            if (textRef.current?.geometry) {
-                textRef.current.geometry.dispose();
-            }
+            particleGeometry.dispose();
+            shaderMaterial.dispose();
         };
-    }, [text, updateTargetPositions]);
+    }, []);
 
-    // Memoize the animation frame callback
-    const animateParticles = useCallback(() => {
-        if (!isInitialized || !particlesRef.current) return;
+    // Update target positions when text changes
+    useEffect(() => {
+        if (!textRef.current?.geometry || !shaderMaterialRef.current) return;
+
+        const newTargetPositions = calculateTextGeometry(textRef.current.geometry);
         
-        const positions = particlesRef.current.geometry.attributes.position.array;
-        for (let i = 0; i < particleCount * 3; i++) {
-            positions[i] += (targetPositions[i] - positions[i]) * 0.01;
-        }
-        particlesRef.current.geometry.attributes.position.needsUpdate = true;
-    }, [isInitialized, particleCount, targetPositions]);
+        // Update next target positions
+        particlesRef.current.geometry.attributes.aNextTargetPosition.array.set(newTargetPositions);
+        particlesRef.current.geometry.attributes.aNextTargetPosition.needsUpdate = true;
 
-    useFrame(animateParticles);
+        // Reset transition progress
+        shaderMaterialRef.current.uniforms.uTransitionProgress.value = 0;
+        shaderMaterialRef.current.uniforms.uTime.value = 0;
+    }, [text]);
 
-    // Memoize the material properties
-    const pointsMaterialProps = useMemo(() => ({
-        size: 0.02,
-        sizeAttenuation: true,
-        color: "white",
-        transparent: true,
-        opacity: 0.8
-    }), []);
+    // Animate particles
+    useFrame((state) => {
+        if (!shaderMaterialRef.current) return;
+
+        shaderMaterialRef.current.uniforms.uTime.value = state.clock.getElapsedTime();
+        
+        // Smoothly transition to next text
+        shaderMaterialRef.current.uniforms.uTransitionProgress.value = THREE.MathUtils.lerp(
+            shaderMaterialRef.current.uniforms.uTransitionProgress.value,
+            1,
+            0.02
+        );
+    });
 
     return (
         <>
@@ -150,7 +165,6 @@ export const ParticleSystem = ({ text, font }) => {
 
             <points ref={particlesRef}>
                 <bufferGeometry />
-                <pointsMaterial {...pointsMaterialProps} />
             </points>
         </>
     );
