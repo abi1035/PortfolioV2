@@ -5,7 +5,7 @@ import React from 'react'
 import Navbar from './Components/Navbar/Navbar.jsx'
 import Homepage from './Homepage.jsx'
 import Projects from './Pages/Projects/Projects.jsx'
-import Contact from './Pages/Contact'
+import Contact from './Pages/Contact/Contact'
 
 export default function App() {
   return (

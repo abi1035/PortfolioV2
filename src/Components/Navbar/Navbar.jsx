@@ -17,7 +17,6 @@ import AdbIcon from '@mui/icons-material/Adb';
 const pages = [
   { name: 'Home', path: '/' },
   { name: 'Projects', path: '/projects' },
-  { name: 'Skills', path: '/skills' },
   { name: 'Contact', path: '/contact' }
 ];
 
@@ -42,7 +41,7 @@ function ResponsiveAppBar() {
   };
 
   return (
-    <AppBar position="static" sx={{ bgcolor: "darkgrey" }}>
+    <AppBar position="static" sx={{ bgcolor: "#130c27" }}>
       <Container maxWidth="xl">
         <Toolbar disableGutters>
           <AdbIcon sx={{ display: { xs: 'none', md: 'flex' }, mr: 1 }} />

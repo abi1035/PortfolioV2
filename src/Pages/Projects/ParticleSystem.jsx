@@ -9,6 +9,7 @@ export const ParticleSystem = ({ text, font }) => {
     const particlesRef = useRef();
     const textRef = useRef();
     const shaderMaterialRef = useRef();
+    const previousTextRef = useRef();
     const particleCount = 5000;
 
     // Calculate triangles and sample points for a given geometry
@@ -93,6 +94,7 @@ export const ParticleSystem = ({ text, font }) => {
         particleGeometry.setAttribute('aTargetPosition', new THREE.BufferAttribute(targetPositions, 3));
         particleGeometry.setAttribute('aNextTargetPosition', new THREE.BufferAttribute(targetPositions, 3));
 
+
         // Create shader material
         const shaderMaterial = new THREE.ShaderMaterial({
             vertexShader,
@@ -109,6 +111,7 @@ export const ParticleSystem = ({ text, font }) => {
         particlesRef.current.geometry = particleGeometry;
         particlesRef.current.material = shaderMaterial;
         shaderMaterialRef.current = shaderMaterial;
+        previousTextRef.current = text;
 
         return () => {
             particleGeometry.dispose();
@@ -118,17 +121,42 @@ export const ParticleSystem = ({ text, font }) => {
 
     // Update target positions when text changes
     useEffect(() => {
-        if (!textRef.current?.geometry || !shaderMaterialRef.current) return;
+        if (!textRef.current?.geometry || !shaderMaterialRef.current || text === previousTextRef.current) return;
 
+        const geometry = particlesRef.current.geometry;
         const newTargetPositions = calculateTextGeometry(textRef.current.geometry);
-        
-        // Update next target positions
-        particlesRef.current.geometry.attributes.aNextTargetPosition.array.set(newTargetPositions);
-        particlesRef.current.geometry.attributes.aNextTargetPosition.needsUpdate = true;
 
-        // Reset transition progress
-        shaderMaterialRef.current.uniforms.uTransitionProgress.value = 0;
+        // Update start positions to be the current positions
+        const currentPositions = new Float32Array(particleCount * 3);
+        for (let i = 0; i < particleCount * 3; i++) {
+            // Calculate the current position based on the current state
+            const progress = 1.0 - Math.exp(-shaderMaterialRef.current.uniforms.uAnimationSpeed.value * 
+                                          shaderMaterialRef.current.uniforms.uTime.value);
+            const transitionProgress = shaderMaterialRef.current.uniforms.uTransitionProgress.value;
+            
+            const startPos = geometry.attributes.aStartPosition.array[i];
+            const targetPos = geometry.attributes.aTargetPosition.array[i];
+            const nextTargetPos = geometry.attributes.aNextTargetPosition.array[i];
+            
+            const currentPos = THREE.MathUtils.lerp(
+                THREE.MathUtils.lerp(startPos, targetPos, progress),
+                nextTargetPos,
+                transitionProgress
+            );
+            
+            currentPositions[i] = currentPos;
+        }
+
+        // Update attributes
+        geometry.setAttribute('aStartPosition', new THREE.BufferAttribute(currentPositions, 3));
+        geometry.setAttribute('aTargetPosition', new THREE.BufferAttribute(currentPositions, 3));
+        geometry.setAttribute('aNextTargetPosition', new THREE.BufferAttribute(newTargetPositions, 3));
+
+        // Reset uniforms
         shaderMaterialRef.current.uniforms.uTime.value = 0;
+        shaderMaterialRef.current.uniforms.uTransitionProgress.value = 0;
+
+        previousTextRef.current = text;
     }, [text]);
 
     // Animate particles

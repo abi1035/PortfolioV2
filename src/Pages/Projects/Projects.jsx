@@ -31,7 +31,7 @@ export default function Projects() {
     
 
     return (
-        <div className="h-screen w-full grid grid-cols-2 gap-4 p-8">
+        <div className="h-screen w-full grid grid-cols-2 gap-4 p-8 bg-gradient-to-b from-[#130c27] via-[#0a0616] to-black">
             {/* Left Column */}
             <div className="border-2 border-red-700">
                 <Canvas
@@ -49,6 +49,9 @@ export default function Projects() {
                     </group>
                     <Html position={[0,-4.4,0]}>
                         <button onClick={nextSlide}><img src='./next.png'/></button>
+                        <button onClick={nextSlide}>Next</button>
+                        
+                        <button onClick={nextSlide}><img src='./back.png'/></button>
                         <button onClick={prevSlide}>Back</button>
                     </Html>
                 </Canvas>

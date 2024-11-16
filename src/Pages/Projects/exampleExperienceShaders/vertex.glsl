@@ -8,13 +8,13 @@ uniform float uTransitionProgress;
 uniform float uAnimationSpeed;
 
 void main() {
-    // Interpolate between current target and next target based on transition progress
-    vec3 currentTarget = mix(aTargetPosition, aNextTargetPosition, uTransitionProgress);
+    // First, interpolate to the current target
+    vec3 currentPos = mix(aStartPosition, aTargetPosition, 1.0 - exp(-uAnimationSpeed * uTime));
     
-    // Animate from start position to current target
-    vec3 pos = mix(aStartPosition, currentTarget, 1.0 - exp(-uAnimationSpeed * uTime));
+    // Then, interpolate from current target to next target
+    vec3 finalPos = mix(currentPos, aNextTargetPosition, uTransitionProgress);
     
-    vec4 modelPosition = modelMatrix * vec4(pos, 1.0);
+    vec4 modelPosition = modelMatrix * vec4(finalPos, 1.0);
     vec4 viewPosition = viewMatrix * modelPosition;
     vec4 projectedPosition = projectionMatrix * viewPosition;
     
